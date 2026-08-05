@@ -17,6 +17,10 @@ It supports deleting the registry traces of Roblox and some registry traces for 
 - [Voidstrap](https://github.com/KloBraticc/Voidstrap)
 - [Bubblestrap](https://github.com/ItzBloxxy/Bubblestrap)
 
+When a bootstrapper is supported, it means that both installation and uninstallation is supported.
+
+Some exceptions apply, such as for repos that got taken down but are still active bootstrappers.
+
 ### Disclaimer for Bootstrapper Support
 Though I can confirm that every github repository that the application pulls from are the authentic, genuine bootstrappers (not fake copies), I cannot provide my guarantee that all programs will work as intended, are allowed by Roblox, or will continue to be 'safe' in the future.
 
