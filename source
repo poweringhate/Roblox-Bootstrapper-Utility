@@ -206,8 +206,12 @@ if __name__ == "__main__":
             print("Operation Complete.")
             print("------------------------------------------\n")
         elif main_choice == "2":
-            cleaned_folders = force_cleanup()
-            write_log(cleaned_folders, action="Cleaned")
-            print("------------------------------------------")
-            print("Operation Complete.")
-            print("------------------------------------------\n")
+            confirm = input("This will uninstall Roblox and any custom bootstrappers, are you sure you want to proceed? (y/n): ").strip().lower()
+            if confirm in ["y", "yes"]:
+                cleaned_folders = force_cleanup()
+                write_log(cleaned_folders, action="Cleaned")
+                print("------------------------------------------")
+                print("Operation Complete.")
+                print("------------------------------------------\n")
+            else:
+                print("Operation cancelled.\n")
