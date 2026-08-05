@@ -29,7 +29,7 @@ Originally, this program was based off another one that was a mac spoofer that I
 
 The purpose of it was to bypass the Roblox ban api/banasync, however with the update of that api that introduced device bans, mac spoofing was no longer enough and required a more technical spoofer. (Such as [ByGoneSpoofer](https://github.com/nitaybl/ByGoneSpoofer).)
 
-It was originally in batch, but then I moved onto to creating a python copy which was significantly better.
+The mac spoofer was originally in batch, but then I moved on to to creating a python copy which was significantly better.
 
 ## Recommended bootstrapper
 My personal recommendation would be Froststrap, just due to significant features and strong development. 
