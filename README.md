@@ -1,6 +1,16 @@
 # Roblox-Client-Manager
 A vibecoded open-source client manager for Roblox made with python.
 
+Support me (skids need money too):
+
+SOL: 5aDtrSqakrVufTHjvcu4Gr8f4gxYNYTdTgXj5MYGJHxw
+
+LTC: ltc1qsxk8g9uwy2xt648rv5vy00es98wen0chh3tng7
+
+BTC: bc1qxj04m8gfy9sck3paqr5w2qs9v9gggrwudv7ed4
+
+ETH: 0x2ed93145af9b89aad12cb662c0c6d9504d83533b
+
 ## Features
 This application allows you to easily install Roblox or any selected custom Roblox bootstrapper through a simple CLI.
 
