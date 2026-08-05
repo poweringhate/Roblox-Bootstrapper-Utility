@@ -44,3 +44,5 @@ However, it is up to you to decide what bootstrapper fits you.
 I plan to update this as much as possible to support new bootstrappers and fix the installation if a bootstrapper's repo is deleted.
 
 However, release v1.0.0 stands as an application that handles the most popular bootstrappers and even some lesser known ones.
+
+<img width="1108" height="618" alt="program 1" src="https://github.com/user-attachments/assets/14dba42e-2037-485a-8ed4-c5a81c7d6158" />
