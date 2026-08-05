@@ -1,0 +1,213 @@
+import os
+import sys
+import subprocess
+import time
+import urllib.request
+import json
+from pathlib import Path
+from datetime import datetime
+
+# ANSI Color Codes
+GREEN = '\033[92m'
+CYAN = '\033[96m' 
+RESET = '\033[0m'
+
+# FIXED PATHING FOR EXE
+if getattr(sys, 'frozen', False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+LOG_PATH = os.path.join(BASE_DIR, "ManagerLog.txt")
+
+def force_cleanup():
+    print("[+] Cleaning Local AppData and Temp folders...")
+    
+    targets = ["Roblox", "Fishstrap", "Bloxstrap", "Voidstrap", "Froststrap", "Plexity", "Bubblestrap"]
+    paths = [os.getenv('LOCALAPPDATA'), os.getenv('TEMP')]
+    
+    deleted_targets = set()
+    
+    apps = [
+        "RobloxPlayerBeta.exe", "RobloxPlayerLauncher.exe", "Roblox.exe", 
+        "Fishstrap.exe", "Bloxstrap.exe", "Voidstrap.exe", 
+        "Froststrap.exe", "Plexity.exe", "Bubblestrap.exe"
+    ]
+    
+    for app in apps:
+        subprocess.run(f'taskkill /F /IM "{app}" /T', capture_output=True, shell=True)
+    
+    time.sleep(1)
+
+    for p in paths:
+        if not p: continue
+        for target in targets:
+            folder = Path(p) / target
+            if folder.exists():
+                subprocess.run(["powershell", "-Command", f"Remove-Item -Recurse -Force '{folder}'"], capture_output=True)
+                if not folder.exists():
+                    deleted_targets.add(target)
+
+    # Registry Cleanup for Roblox and Froststrap (Silent)
+    reg_keys = [
+        r"HKCU\Software\ROBLOX Corporation",
+        r"HKCU\Software\Roblox",
+        r"HKCU\Software\Classes\roblox",
+        r"HKCU\Software\Classes\roblox-player",
+        r"HKCU\Software\Classes\roblox-studio",
+        r"HKCU\Software\Classes\roblox-studio-auth",
+        r"HKCU\Software\Froststrap"
+    ]
+
+    for key in reg_keys:
+        subprocess.run(f'reg delete "{key}" /f', capture_output=True, shell=True)
+
+    for item in deleted_targets:
+        print(f"{GREEN}SUCCESS: Removed {item}{RESET}")
+    
+    print("") 
+    return list(deleted_targets)
+
+def write_log(items, action="Cleaned"):
+    timestamp = datetime.now().strftime("%d-%m-%Y %I:%M:%S %p")
+    if action == "Cleaned":
+        log_str = ", ".join(items) if items else "None (Already Clean)"
+    else:
+        log_str = ", ".join(items) if isinstance(items, list) else items
+    
+    # Building the new entry
+    new_entry = f"[{timestamp}]\n"
+    new_entry += f"{action}: {log_str}\n\n"
+
+    try:
+        # Read the old content first
+        old_content = ""
+        if os.path.exists(LOG_PATH):
+            with open(LOG_PATH, "r") as f:
+                old_content = f.read()
+
+        # Write new entry AT THE TOP followed by old content
+        with open(LOG_PATH, "w") as f:
+            f.write(new_entry + old_content)
+    except Exception as e:
+        print(f"Log Error: {e}")
+
+def auto_install_roblox():
+    print(f"{GREEN}[+] Automatically downloading and launching Roblox...{RESET}")
+    installer_path = Path(os.getenv('TEMP')) / "RobloxPlayerInstaller.exe"
+    url = "https://setup.rbxcdn.com/RobloxPlayerInstaller.exe"
+    
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response, open(installer_path, 'wb') as out_file:
+            out_file.write(response.read())
+
+        subprocess.Popen([str(installer_path)])
+        print(f"{GREEN}SUCCESS: Roblox installer launched!{RESET}\n")
+        return "Roblox"
+    except Exception as e:
+        print(f"Failed to auto-install Roblox: {e}\n")
+        return None
+
+def auto_install_github_release(repo, name, is_prerelease=False):
+    display_name = f"{name} Pre-Release" if is_prerelease else name
+    print(f"{GREEN}[+] Automatically downloading and launching {display_name}...{RESET}")
+    installer_path = Path(os.getenv('TEMP')) / f"{name}.exe"
+    
+    try:
+        if is_prerelease:
+            api_url = f"https://api.github.com/repos/{repo}/releases"
+        else:
+            api_url = f"https://api.github.com/repos/{repo}/releases/latest"
+            
+        req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0'})
+        
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+        
+        target_release = None
+        if is_prerelease:
+            if isinstance(data, list):
+                for rel in data:
+                    if rel.get("prerelease", False):
+                        target_release = rel
+                        break
+                if not target_release and len(data) > 0:
+                    target_release = data[0]
+            if not target_release:
+                raise Exception(f"No pre-releases found for {name}.")
+        else:
+            target_release = data
+
+        download_url = None
+        for asset in target_release.get("assets", []):
+            if asset["name"].endswith(".exe"):
+                download_url = asset["browser_download_url"]
+                break
+        
+        if not download_url:
+            raise Exception(f"No executable asset found in {display_name} release.")
+
+        dl_req = urllib.request.Request(download_url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(dl_req) as response, open(installer_path, 'wb') as out_file:
+            out_file.write(response.read())
+
+        subprocess.Popen([str(installer_path)])
+        print(f"{GREEN}SUCCESS: {display_name} installer launched!{RESET}\n")
+        return display_name
+    except Exception as e:
+        print(f"Failed to auto-install {display_name}: {e}\n")
+        return None
+
+def prompt_reinstall():
+    print("[+] Installation Options:")
+    print(f"{GREEN}1. Roblox (Standard Bootstrapper){RESET}")
+    print(f"{GREEN}2. Froststrap{RESET}")
+    print(f"{GREEN}3. Froststrap Pre-Release{RESET}")
+    print(f"{GREEN}4. Bloxstrap{RESET}")
+    print(f"{GREEN}5. Voidstrap{RESET}")
+    print(f"{GREEN}6. Bubblestrap{RESET}")
+    print("")
+    choice = input("Select an option (1-6): ").strip()
+    print("")
+    
+    installed = None
+    if choice == "1":
+        installed = auto_install_roblox()
+    elif choice == "2":
+        installed = auto_install_github_release("Froststrap/Froststrap", "Froststrap")
+    elif choice == "3":
+        installed = auto_install_github_release("Froststrap/Froststrap", "Froststrap", is_prerelease=True)
+    elif choice == "4":
+        installed = auto_install_github_release("bloxstraplabs/bloxstrap", "Bloxstrap")
+    elif choice == "5":
+        installed = auto_install_github_release("KloBraticc/Voidstrap", "Voidstrap")
+    elif choice == "6":
+        installed = auto_install_github_release("ItzBloxxy/Bubblestrap", "Bubblestrap")
+    print("")
+
+    if installed:
+        write_log([installed], action="Installed")
+
+if __name__ == "__main__":
+    os.system("") 
+    
+    while True:
+        print("=== Roblox Client Manager ===")
+        print(f"{GREEN}1. Install Roblox/Bootstrappers{RESET}")
+        print(f"{GREEN}2. Uninstall Roblox & Bootstrapper installations{RESET}")
+        print("")
+        main_choice = input("Select an option (1-2): ").strip()
+        print("")
+        
+        if main_choice == "1":
+            prompt_reinstall()
+            print("------------------------------------------")
+            print("Operation Complete.")
+            print("------------------------------------------\n")
+        elif main_choice == "2":
+            cleaned_folders = force_cleanup()
+            write_log(cleaned_folders, action="Cleaned")
+            print("------------------------------------------")
+            print("Operation Complete.")
+            print("------------------------------------------\n")
