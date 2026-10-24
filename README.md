@@ -1,5 +1,5 @@
 # Roblox Bootstrapper Utility
-A vibecoded open-source client manager for Roblox made with python.
+A vibecoded open-source bootstrapper management utility for Roblox made with python.
 
 Support me (skids need money too):
 
