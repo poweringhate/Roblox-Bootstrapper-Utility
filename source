@@ -3,6 +3,7 @@ import sys
 import subprocess
 import time
 import urllib.request
+import urllib.error
 import json
 from pathlib import Path
 from datetime import datetime
@@ -10,6 +11,8 @@ from datetime import datetime
 # ANSI Color Codes
 GREEN = '\033[92m'
 CYAN = '\033[96m' 
+BLUE = '\033[94m'
+YELLOW = '\033[93m'
 RESET = '\033[0m'
 
 # FIXED PATHING FOR EXE
@@ -18,21 +21,32 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-LOG_PATH = os.path.join(BASE_DIR, "ManagerLog.txt")
+LOG_PATH = os.path.join(BASE_DIR, "UtilityLog.txt")
 
-def force_cleanup():
-    print("[+] Cleaning Local AppData and Temp folders...")
+def force_cleanup(specific_target=None):
+    print("Cleaning...")
     
-    targets = ["Roblox", "Fishstrap", "Bloxstrap", "Voidstrap", "Froststrap", "Plexity", "Bubblestrap"]
-    paths = [os.getenv('LOCALAPPDATA'), os.getenv('TEMP')]
+    targets = [specific_target] if specific_target else ["Roblox", "Fishstrap", "Bloxstrap", "Voidstrap", "Froststrap", "Plexity", "Bubblestrap"]
+    paths = [os.getenv('LOCALAPPDATA'), os.getenv('TEMP'), os.getenv('PROGRAMFILES'), os.getenv('PROGRAMFILES(X86)')]
     
     deleted_targets = set()
     
-    apps = [
-        "RobloxPlayerBeta.exe", "RobloxPlayerLauncher.exe", "Roblox.exe", 
-        "Fishstrap.exe", "Bloxstrap.exe", "Voidstrap.exe", 
-        "Froststrap.exe", "Plexity.exe", "Bubblestrap.exe"
-    ]
+    apps_map = {
+        "Roblox": ["RobloxPlayerBeta.exe", "RobloxPlayerLauncher.exe", "Roblox.exe"],
+        "Fishstrap": ["Fishstrap.exe"],
+        "Bloxstrap": ["Bloxstrap.exe"],
+        "Voidstrap": ["Voidstrap.exe"],
+        "Froststrap": ["Froststrap.exe"],
+        "Plexity": ["Plexity.exe"],
+        "Bubblestrap": ["Bubblestrap.exe"]
+    }
+    
+    apps = []
+    if specific_target:
+        apps = apps_map.get(specific_target, [f"{specific_target}.exe"])
+    else:
+        for app_list in apps_map.values():
+            apps.extend(app_list)
     
     for app in apps:
         subprocess.run(f'taskkill /F /IM "{app}" /T', capture_output=True, shell=True)
@@ -44,29 +58,144 @@ def force_cleanup():
         for target in targets:
             folder = Path(p) / target
             if folder.exists():
-                subprocess.run(["powershell", "-Command", f"Remove-Item -Recurse -Force '{folder}'"], capture_output=True)
+                subprocess.run(["powershell", "-Command", f"Remove-Item -Recurse -Force '{folder}' -ErrorAction SilentlyContinue"], capture_output=True)
                 if not folder.exists():
                     deleted_targets.add(target)
 
-    # Registry Cleanup for Roblox and Froststrap (Silent)
-    reg_keys = [
-        r"HKCU\Software\ROBLOX Corporation",
-        r"HKCU\Software\Roblox",
-        r"HKCU\Software\Classes\roblox",
-        r"HKCU\Software\Classes\roblox-player",
-        r"HKCU\Software\Classes\roblox-studio",
-        r"HKCU\Software\Classes\roblox-studio-auth",
-        r"HKCU\Software\Froststrap"
-    ]
+    # Silent MSI uninstallation, registry cleanup, and elevated folder purge for Froststrap in Program Files
+    if not specific_target or specific_target == "Froststrap":
+        subprocess.run(["powershell", "-Command", "Get-CimInstance Win32_Product | Where-Object {$_.Name -like '*Froststrap*'} | Invoke-CimMethod -MethodName Uninstall -ErrorAction SilentlyContinue"], capture_output=True)
+        
+        ps_script = (
+            "$uninstallKeys = @('HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*', 'HKLM:\\Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*', 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'); "
+            "foreach ($key in $uninstallKeys) { "
+            "   Get-ItemProperty $key -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*Froststrap*' } | ForEach-Object { "
+            "       if ($_.UninstallString) { "
+            "           $uninst = $_.UninstallString; "
+            "           if ($uninst -match 'MsiExec.exe') { "
+            "               $uninst = $uninst -replace '/I','/X' + ' /qn /norestart'; "
+            "               Start-Process cmd -ArgumentList '/c $uninst' -Wait -WindowStyle Hidden -ErrorAction SilentlyContinue; "
+            "           } "
+            "       } "
+            "   } "
+            "}"
+        )
+        subprocess.run(["powershell", "-Command", ps_script], capture_output=True)
 
-    for key in reg_keys:
-        subprocess.run(f'reg delete "{key}" /f', capture_output=True, shell=True)
+        for pf in [os.getenv('PROGRAMFILES'), os.getenv('PROGRAMFILES(X86)')]:
+            if pf:
+                f_folder = Path(pf) / "Froststrap"
+                if f_folder.exists():
+                    subprocess.run(["powershell", "-Command", f"Remove-Item -Recurse -Force '{f_folder}' -ErrorAction SilentlyContinue"], capture_output=True)
+                    if f_folder.exists():
+                        subprocess.run(["powershell", "-Command", f"Start-Process powershell -ArgumentList '-Command \"Remove-Item -Recurse -Force \\\"{f_folder}\\\" -ErrorAction SilentlyContinue\"' -Verb RunAs -Wait"], capture_output=True)
+                    if not f_folder.exists():
+                        deleted_targets.add("Froststrap")
+
+    # Registry Cleanup for Roblox, Froststrap, and Voidstrap (Silent)
+    if not specific_target or specific_target in ["Roblox", "Froststrap", "Voidstrap"]:
+        reg_keys = []
+        if not specific_target or specific_target == "Roblox":
+            reg_keys.extend([
+                r"HKCU\Software\ROBLOX Corporation",
+                r"HKCU\Software\Roblox",
+                r"HKCU\Software\Classes\roblox",
+                r"HKCU\Software\Classes\roblox-player",
+                r"HKCU\Software\Classes\roblox-studio",
+                r"HKCU\Software\Classes\roblox-studio-auth"
+            ])
+        if not specific_target or specific_target == "Froststrap":
+            reg_keys.append(r"HKCU\Software\Froststrap")
+        if not specific_target or specific_target == "Voidstrap":
+            reg_keys.append(r"HKCU\Software\Voidstrap")
+
+        for key in reg_keys:
+            subprocess.run(f'reg delete "{key}" /f', capture_output=True, shell=True)
 
     for item in deleted_targets:
         print(f"{GREEN}SUCCESS: Removed {item}{RESET}")
     
     print("") 
     return list(deleted_targets)
+
+def uninstall_single_bootstrapper():
+    potential_targets = ["Roblox", "Fishstrap", "Bloxstrap", "Voidstrap", "Froststrap", "Plexity", "Bubblestrap"]
+    paths = [os.getenv('LOCALAPPDATA'), os.getenv('TEMP'), os.getenv('PROGRAMFILES'), os.getenv('PROGRAMFILES(X86)')]
+    
+    installed = []
+    for target in potential_targets:
+        found = False
+        for p in paths:
+            if not p: continue
+            folder = Path(p) / target
+            if folder.exists():
+                found = True
+                break
+        if not found and target == "Froststrap":
+            for pf in [os.getenv('PROGRAMFILES'), os.getenv('PROGRAMFILES(X86)')]:
+                if pf and (Path(pf) / "Froststrap").exists():
+                    found = True
+                    break
+        if found and target not in installed:
+            installed.append(target)
+            
+    if not installed:
+        print("No installed Roblox or bootstrappers found.\n")
+        return
+        
+    print("[+] Installed Roblox / Bootstrappers:")
+    for idx, item in enumerate(installed, 1):
+        print(f"{GREEN}{idx}. {item}{RESET}")
+    print("")
+    
+    choice_input = input(f"Select a bootstrapper to uninstall (1-{len(installed)}): ").strip()
+    print("")
+    
+    if not choice_input.isdigit() or not (1 <= int(choice_input) <= len(installed)):
+        print("Invalid selection.\n")
+        return
+        
+    chosen_target = installed[int(choice_input) - 1]
+    
+    confirm = input(f"This will uninstall {chosen_target}, are you sure you want to proceed? (y/n): ").strip().lower()
+    if confirm in ["y", "yes"]:
+        cleaned_folders = force_cleanup(specific_target=chosen_target)
+        write_log(cleaned_folders, action="Cleaned")
+        print("------------------------------------------")
+        print("Operation Complete.")
+        print("------------------------------------------\n")
+    else:
+        print("Operation cancelled.\n")
+
+def show_installed_apps():
+    potential_targets = ["Roblox", "Fishstrap", "Bloxstrap", "Voidstrap", "Froststrap", "Plexity", "Bubblestrap"]
+    paths = [os.getenv('LOCALAPPDATA'), os.getenv('TEMP'), os.getenv('PROGRAMFILES'), os.getenv('PROGRAMFILES(X86)')]
+    
+    installed = []
+    for target in potential_targets:
+        found = False
+        for p in paths:
+            if not p: continue
+            folder = Path(p) / target
+            if folder.exists():
+                found = True
+                break
+        if not found and target == "Froststrap":
+            for pf in [os.getenv('PROGRAMFILES'), os.getenv('PROGRAMFILES(X86)')]:
+                if pf and (Path(pf) / "Froststrap").exists():
+                    found = True
+                    break
+        if found and target not in installed:
+            installed.append(target)
+            
+    if not installed:
+        print("No installed Roblox or bootstrappers found.\n")
+        return
+        
+    print("[+] Installed Roblox / Bootstrappers:")
+    for idx, item in enumerate(installed, 1):
+        print(f"{GREEN}{idx}. {item}{RESET}")
+    print("")
 
 def write_log(items, action="Cleaned"):
     timestamp = datetime.now().strftime("%d-%m-%Y %I:%M:%S %p")
@@ -109,10 +238,21 @@ def auto_install_roblox():
         print(f"Failed to auto-install Roblox: {e}\n")
         return None
 
+def parse_version(tag):
+    if not tag:
+        return (0, 0, 0)
+    clean = ''.join(c for c in tag if c.isdigit() or c == '.')
+    parts = []
+    for p in clean.split('.'):
+        if p.isdigit():
+            parts.append(int(p))
+    while len(parts) < 3:
+        parts.append(0)
+    return tuple(parts[:3])
+
 def auto_install_github_release(repo, name, is_prerelease=False):
     display_name = f"{name} Pre-Release" if is_prerelease else name
     print(f"{GREEN}[+] Automatically downloading and launching {display_name}...{RESET}")
-    installer_path = Path(os.getenv('TEMP')) / f"{name}.exe"
     
     try:
         if is_prerelease:
@@ -122,29 +262,59 @@ def auto_install_github_release(repo, name, is_prerelease=False):
             
         req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0'})
         
-        with urllib.request.urlopen(req) as response:
-            data = json.loads(response.read().decode())
+        try:
+            with urllib.request.urlopen(req) as response:
+                data = json.loads(response.read().decode())
+        except urllib.error.HTTPError as err:
+            if err.code == 404 and not is_prerelease:
+                api_url = f"https://api.github.com/repos/{repo}/releases"
+                req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req) as response:
+                    data = json.loads(response.read().decode())
+            else:
+                raise err
         
         target_release = None
-        if is_prerelease:
+        if is_prerelease or isinstance(data, list):
             if isinstance(data, list):
-                for rel in data:
-                    if rel.get("prerelease", False):
-                        target_release = rel
-                        break
-                if not target_release and len(data) > 0:
-                    target_release = data[0]
+                if is_prerelease:
+                    for rel in data:
+                        if rel.get("prerelease", False):
+                            target_release = rel
+                            break
+                    if not target_release and len(data) > 0:
+                        target_release = data[0]
+                else:
+                    if len(data) > 0:
+                        target_release = data[0]
             if not target_release:
-                raise Exception(f"No pre-releases found for {name}.")
+                raise Exception(f"No releases found for {name}.")
         else:
             target_release = data
 
+        tag = target_release.get("tag_name", "") or target_release.get("name", "")
+        version = parse_version(tag)
+        
+        target_ext = ".exe"
+        if name.lower() == "froststrap" and version >= (2, 0, 4):
+            target_ext = ".msi"
+
+        installer_path = Path(os.getenv('TEMP')) / f"{name}{target_ext}"
+
         download_url = None
         for asset in target_release.get("assets", []):
-            if asset["name"].endswith(".exe"):
+            if asset["name"].endswith(target_ext):
                 download_url = asset["browser_download_url"]
                 break
         
+        if not download_url and target_ext == ".msi":
+            for asset in target_release.get("assets", []):
+                if asset["name"].endswith(".exe"):
+                    download_url = asset["browser_download_url"]
+                    target_ext = ".exe"
+                    installer_path = Path(os.getenv('TEMP')) / f"{name}{target_ext}"
+                    break
+
         if not download_url:
             raise Exception(f"No executable asset found in {display_name} release.")
 
@@ -152,7 +322,11 @@ def auto_install_github_release(repo, name, is_prerelease=False):
         with urllib.request.urlopen(dl_req) as response, open(installer_path, 'wb') as out_file:
             out_file.write(response.read())
 
-        subprocess.Popen([str(installer_path)])
+        if target_ext == ".msi":
+            subprocess.Popen(["msiexec", "/i", str(installer_path)])
+        else:
+            subprocess.Popen([str(installer_path)])
+            
         print(f"{GREEN}SUCCESS: {display_name} installer launched!{RESET}\n")
         return display_name
     except Exception as e:
@@ -184,28 +358,130 @@ def prompt_reinstall():
         installed = auto_install_github_release("KloBraticc/Voidstrap", "Voidstrap")
     elif choice == "6":
         installed = auto_install_github_release("ItzBloxxy/Bubblestrap", "Bubblestrap")
+    else:
+        print("Error: Invalid option selected.\n")
+        return False
     print("")
 
     if installed:
         write_log([installed], action="Installed")
+    return True
+
+def handle_install_command(arg):
+    if not arg:
+        return prompt_reinstall()
+    
+    arg_lower = arg.lower()
+    
+    install_options = [
+        {"name": "Roblox (Standard Bootstrapper)", "key": "roblox", "func": auto_install_roblox},
+        {"name": "Froststrap", "key": "froststrap", "func": lambda: auto_install_github_release("Froststrap/Froststrap", "Froststrap")},
+        {"name": "Froststrap Pre-Release", "key": "prerelease", "func": lambda: auto_install_github_release("Froststrap/Froststrap", "Froststrap", is_prerelease=True)},
+        {"name": "Bloxstrap", "key": "bloxstrap", "func": lambda: auto_install_github_release("bloxstraplabs/bloxstrap", "Bloxstrap")},
+        {"name": "Voidstrap", "key": "voidstrap", "func": lambda: auto_install_github_release("KloBraticc/Voidstrap", "Voidstrap")},
+        {"name": "Bubblestrap", "key": "bubblestrap", "func": lambda: auto_install_github_release("ItzBloxxy/Bubblestrap", "Bubblestrap")},
+    ]
+    
+    matches = []
+    for opt in install_options:
+        if arg_lower in opt["name"].lower() or arg_lower in opt["key"]:
+            matches.append(opt)
+            
+    if not matches:
+        print(f"No matching installer found for '{arg}'. Showing installation options:\n")
+        return prompt_reinstall()
+    elif len(matches) == 1:
+        chosen = matches[0]
+        installed = chosen["func"]()
+        if installed:
+            write_log([installed], action="Installed")
+        return True
+    else:
+        print(f"[+] Multiple matches found for '{arg}':")
+        for idx, match in enumerate(matches, 1):
+            print(f"{GREEN}{idx}. {match['name']}{RESET}")
+        print("")
+        choice_input = input(f"Select an option (1-{len(matches)}): ").strip()
+        print("")
+        if not choice_input.isdigit() or not (1 <= int(choice_input) <= len(matches)):
+            print("Invalid selection.\n")
+            return False
+        chosen = matches[int(choice_input) - 1]
+        installed = chosen["func"]()
+        if installed:
+            write_log([installed], action="Installed")
+        return True
+
+def handle_uninstall_command(arg):
+    if not arg:
+        uninstall_single_bootstrapper()
+        return
+    
+    arg_lower = arg.lower()
+    potential_targets = ["Roblox", "Fishstrap", "Bloxstrap", "Voidstrap", "Froststrap", "Plexity", "Bubblestrap"]
+    matched = None
+    for target in potential_targets:
+        if arg_lower in target.lower():
+            matched = target
+            break
+            
+    if not matched:
+        print(f"No matching bootstrapper found for '{arg}'.\n")
+        uninstall_single_bootstrapper()
+        return
+        
+    confirm = input(f"This will uninstall {matched}, are you sure you want to proceed? (y/n): ").strip().lower()
+    if confirm in ["y", "yes"]:
+        cleaned_folders = force_cleanup(specific_target=matched)
+        write_log(cleaned_folders, action="Cleaned")
+        print("------------------------------------------")
+        print("Operation Complete.")
+        print("------------------------------------------\n")
+    else:
+        print("Operation cancelled.\n")
+
+def show_help():
+    print(f"{GREEN}Available Commands:{RESET}")
+    
+    def print_line(left_colored, left_plain, desc):
+        target_width = 16
+        padding = max(0, target_width - len(left_plain))
+        print(f"  {left_colored}{' ' * padding} - {desc}")
+
+    print_line(f"{CYAN}help{RESET}", "help", "Display all available commands and detailed usage")
+    print_line(f"{CYAN}install{RESET} {YELLOW}<name>{RESET}", "install <name>", "Present interactive installation menu or instantly install a specific bootstrapper by name")
+    print_line(f"{CYAN}uninstall{RESET} {YELLOW}<name>{RESET}", "uninstall <name>", "Present interactive uninstallation menu or instantly uninstall a specific bootstrapper by name")
+    print_line(f"{CYAN}apps{RESET}", "apps", "Present all installed installations for Roblox and other bootstrappers")
+    print_line(f"{CYAN}purge{RESET}", "purge", "Completely uninstall Roblox, all custom bootstrappers, registry keys, and residual files")
+    print("")
 
 if __name__ == "__main__":
     os.system("") 
     
     while True:
-        print("=== Roblox Client Manager ===")
-        print(f"{GREEN}1. Install Roblox/Bootstrappers{RESET}")
-        print(f"{GREEN}2. Uninstall Roblox & Bootstrapper installations{RESET}")
+        print("--- Roblox Bootstrapper Utility ---")
+        command_input = input("> ").strip()
         print("")
-        main_choice = input("Select an option (1-2): ").strip()
-        print("")
+        if not command_input:
+            continue
         
-        if main_choice == "1":
-            prompt_reinstall()
-            print("------------------------------------------")
-            print("Operation Complete.")
-            print("------------------------------------------\n")
-        elif main_choice == "2":
+        parts = command_input.split(maxsplit=1)
+        cmd = parts[0].lower()
+        arg = parts[1].strip() if len(parts) > 1 else ""
+        
+        if cmd == "help":
+            show_help()
+        elif cmd == "install":
+            success = handle_install_command(arg)
+            if success:
+                print("------------------------------------------")
+                print("Operation Complete.")
+                print("------------------------------------------\n")
+        elif cmd == "uninstall":
+            handle_uninstall_command(arg)
+        elif cmd == "apps":
+            show_installed_apps()
+        elif cmd == "purge":
             confirm = input("This will uninstall Roblox and any custom bootstrappers, are you sure you want to proceed? (y/n): ").strip().lower()
             if confirm in ["y", "yes"]:
                 cleaned_folders = force_cleanup()
@@ -215,3 +491,5 @@ if __name__ == "__main__":
                 print("------------------------------------------\n")
             else:
                 print("Operation cancelled.\n")
+        else:
+            print(f"Unknown command: '{cmd}'. Type 'help' for available commands.\n")
