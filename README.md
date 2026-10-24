@@ -64,6 +64,7 @@ The mac spoofer was originally in batch, but then I moved on to to creating a py
 
 ## Recommended bootstrapper
 My personal recommendation would be Bubblestrap, this is due to their support of multi-instancing.
+
 This is compared to other bootstrappers that have removed the feature (even Froststrap) despite the fact that there has been no recorded bans for using multi-instancing and the feature is quite stable.
 
 However, it is up to you to decide what bootstrapper fits you.
