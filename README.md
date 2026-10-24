@@ -1,4 +1,4 @@
-# Roblox-Client-Manager
+# Roblox Bootstrapper Utility
 A vibecoded open-source client manager for Roblox made with python.
 
 Support me (skids need money too):
@@ -20,9 +20,26 @@ You can also fully uninstall Roblox and all custom bootstrappers in one key! As 
 
 It supports deleting the registry traces of Roblox and some registry traces for bootstrappers as well.
 
+## Command use
+- help             - Display all available commands and detailed usage
+- install <name>   - Present interactive installation menu or instantly install a specific bootstrapper by name
+- uninstall <name> - Present interactive uninstallation menu or instantly uninstall a specific bootstrapper by name
+- apps             - Present all installed installations for Roblox and other bootstrappers
+- purge            - Completely uninstall Roblox, all custom bootstrappers, registry keys, and residual files
+
+You can use "install" to select a bootstrapper to install, uninstall to select a bootstrapper to uninstall, or run those commands with the name of the program you want to install/uninstall (partial matching is used!).
+
+For example running `install bubblestrap` will directly install bubblestrap rather then presenting the bootstrapper options, which are presented when running `install`.
+
+If you run `install froststrap`, you will be presented with the option of the latest stable release or the latest pre-release.
+
+The command `purge` will uninstall all bootstrappers and wipe their traces.
+
+You can also view all the bootstrapper applications that are installed (including Roblox) by running the command `apps`.
+
 ## Bootstrapper Support
 - [Roblox (Standard Bootstrapper)](https://www.roblox.com/download)
-- [Froststrap](https://github.com/Froststrap/Froststrap) (including pre-releases, as per option 3)
+- [Froststrap](https://github.com/Froststrap/Froststrap) (including pre-releases)
 - [Bloxstrap](https://github.com/bloxstraplabs/bloxstrap)
 - [Voidstrap](https://github.com/KloBraticc/Voidstrap)
 - [Bubblestrap](https://github.com/ItzBloxxy/Bubblestrap)
@@ -46,13 +63,15 @@ The purpose of it was to bypass the Roblox ban api/banasync, however with the up
 The mac spoofer was originally in batch, but then I moved on to to creating a python copy which was significantly better.
 
 ## Recommended bootstrapper
-My personal recommendation would be Froststrap, just due to significant features and strong development. 
+My personal recommendation would be Bubblestrap, this is due to their support of multi-instancing.
+This is compared to other bootstrappers that have removed the feature (even Froststrap) despite the fact that there has been no recorded bans for using multi-instancing and the feature is quite stable.
 
 However, it is up to you to decide what bootstrapper fits you.
 
 ## Will this be updated?
 I plan to update this as much as possible to support new bootstrappers and fix the installation if a bootstrapper's repo is deleted.
 
-However, release v1.0.0 stands as an application that handles the most popular bootstrappers and even some lesser known ones.
+This repo was recently updated with a full revamp.
 
-<img width="1108" height="618" alt="program 1" src="https://github.com/user-attachments/assets/14dba42e-2037-485a-8ed4-c5a81c7d6158" />
+<img width="1104" height="615" alt="image" src="https://github.com/user-attachments/assets/284e5441-7f9d-4e56-a80b-e2daddfb8e8f" />
+
