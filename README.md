@@ -20,6 +20,15 @@ You can also fully uninstall Roblox and all custom bootstrappers in one key! As 
 
 It supports deleting the registry traces of Roblox and some registry traces for bootstrappers as well.
 
+## Installation
+Download the exe from [releases](https://github.com/poweringhate/Roblox-Bootstrapper-Utility/releases).
+
+Alternatively, you can download the python script from the latest release.
+
+Or you can copy it yourself from the [source](https://github.com/poweringhate/Roblox-Bootstrapper-Utility/blob/main/source) and save it as a python file.
+
+You can also convert the python script to an exe file using pyinstaller.
+
 ## Command use
 - help             - Display all available commands and detailed usage
 - install <name>   - Present interactive installation menu or instantly install a specific bootstrapper by name
